@@ -21,7 +21,7 @@ I will learn new ways to visualize mathematical concepts. I will learn how to ef
     - Can target web or native platforms
 - Rocket.rs
     - Very flexible library for implementing web servers in Rust
-    - I highly recommend Mr. Kowalczyk to look into this (https://rocket.rs/)
+    - I highly recommend Dr. Kowalczyk to look into this (https://rocket.rs/)
 - wasm-pack
     - QoL tool used that takes care of compiling to wasm and generating javascript glue
 - wasm bind-gen

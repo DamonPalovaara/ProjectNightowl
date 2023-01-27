@@ -3,7 +3,9 @@
         "bindgen",
         "Kowalczyk",
         "termcolor",
+        "Vulkan",
         "wgpu",
+        "WGSL",
         "winit"
     ]
 }
