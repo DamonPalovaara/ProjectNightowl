@@ -11,6 +11,3 @@ else:
     print(colored("Copying package to server", "green"))
     sp.run('rm -r public/pkg', shell=True)
     sp.run('cp -r client/pkg public/pkg', shell=True)
-
-    print(colored("Booting server", "green"))
-    sp.run('cargo run', shell=True)

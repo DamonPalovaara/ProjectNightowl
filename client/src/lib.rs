@@ -5,10 +5,18 @@ use wasm_bindgen::prelude::*;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
+    window::{Window, WindowBuilder, WindowId},
 };
 
 use wgpu::util::DeviceExt;
+
+trait Render {
+    fn render(&self, surface: &Surface) -> Result<(), wgpu::SurfaceError>;
+}
+
+trait Update {
+    fn update(&mut self);
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -34,35 +42,42 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [0.8, 0.0, 0.3],
-    },
+        position: [-0.0868241, 0.49240386, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // A
     Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.6, 0.1, 0.2],
-    },
+        position: [-0.49513406, 0.06958647, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // B
     Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.4, 0.2, 0.1],
-    },
+        position: [-0.21918549, -0.44939706, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // C
+    Vertex {
+        position: [0.35966998, -0.3473291, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // D
+    Vertex {
+        position: [0.44147372, 0.2347359, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // E
 ];
 
-struct State {
+const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
+
+struct Surface {
+    size: winit::dpi::PhysicalSize<u32>,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    size: winit::dpi::PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    num_vertices: u32,
 }
 
-impl State {
+impl Surface {
     async fn new(window: &Window) -> Self {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+        let surface = unsafe { instance.create_surface(window).unwrap() };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -90,16 +105,56 @@ impl State {
             .await
             .unwrap();
 
+        let capabilities = surface.get_capabilities(&adapter);
+
+        let surface_format = capabilities
+            .formats
+            .iter()
+            .copied()
+            .filter(|f| f.describe().srgb)
+            .next()
+            .unwrap_or(capabilities.formats[0]);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            present_mode: capabilities.present_modes[0],
+            alpha_mode: capabilities.alpha_modes[0],
+            view_formats: vec![],
         };
+
         surface.configure(&device, &config);
 
+        Self {
+            size,
+            surface,
+            device,
+            config,
+            queue,
+        }
+    }
+
+    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        if new_size.width > 0 && new_size.height > 0 {
+            self.size = new_size;
+            self.config.width = new_size.width;
+            self.config.height = new_size.height;
+            self.surface.configure(&self.device, &self.config);
+        }
+    }
+}
+
+struct Pipeline {
+    render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
+}
+
+impl Pipeline {
+    fn new(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
         let render_pipeline_layout =
@@ -155,45 +210,35 @@ impl State {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let num_vertices = VERTICES.len() as u32;
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let num_indices = INDICES.len() as u32;
 
         Self {
-            surface,
-            device,
-            queue,
-            config,
-            size,
             render_pipeline,
             vertex_buffer,
-            num_vertices,
+            index_buffer,
+            num_indices,
         }
     }
+}
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
-        }
-    }
-
-    fn input(&mut self, event: &WindowEvent) -> bool {
-        false
-    }
-
-    fn update(&mut self) {}
-
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
+impl Render for Pipeline {
+    fn render(&self, surface: &Surface) -> Result<(), wgpu::SurfaceError> {
+        let output = surface.surface.get_current_texture()?;
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
+        let mut encoder = surface
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -215,28 +260,42 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..self.num_vertices, 0..1);
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        surface.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         Ok(())
     }
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn run() {
-    // Initialize the logger
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            console_error_panic_hook::set_once();
-            tracing_wasm::set_as_global_default();
-        }
-        else {
-            tracing_subscriber::fmt::init();
-        }
+struct State {
+    pipeline: Pipeline,
+}
+
+impl State {
+    async fn new(window: &Window, surface: &Surface) -> Self {
+        let pipeline = Pipeline::new(&surface.device, &surface.config);
+
+        Self { pipeline }
     }
 
+    fn input(&mut self, event: &WindowEvent) -> bool {
+        false
+    }
+
+    fn update(&mut self) {}
+}
+
+impl Render for State {
+    fn render(&self, surface: &Surface) -> Result<(), wgpu::SurfaceError> {
+        self.pipeline.render(surface)?;
+        Ok(())
+    }
+}
+
+fn create_window() -> (Window, EventLoop<()>) {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
@@ -256,20 +315,104 @@ pub async fn run() {
             })
             .expect("Couldn't append canvas to div.");
     }
-    let mut state = State::new(&window).await;
 
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == window.id() => {
-            if !state.input(event) {
+    (window, event_loop)
+}
+
+struct Application {
+    engine: Engine,
+    event_loop: EventLoop<()>,
+}
+
+impl Application {
+    pub async fn new() -> Self {
+        // Initialize the logger
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                console_error_panic_hook::set_once();
+                tracing_wasm::set_as_global_default();
+            }
+            else {
+                tracing_subscriber::fmt::init();
+            }
+        }
+
+        let (window, event_loop) = create_window();
+        let engine = Engine::new(window).await;
+
+        Self { engine, event_loop }
+    }
+}
+
+impl Application {
+    pub fn run(mut self) {
+        self.event_loop
+            .run(move |event, _, control_flow| match event {
+                Event::WindowEvent { window_id, event } => {
+                    self.engine
+                        .handle_window_event(window_id, &event, control_flow);
+                }
+                Event::RedrawRequested(window_id) => {
+                    self.engine.handle_redraw_requested(window_id, control_flow);
+                }
+                Event::MainEventsCleared => {
+                    self.engine.window.request_redraw();
+                }
+                _ => {}
+            });
+    }
+
+    fn add_updatable(&mut self, object: Box<dyn Update>) {
+        self.engine.add_updatable(object);
+    }
+
+    fn add_renderable(&mut self, object: Box<dyn Render>) {
+        self.engine.add_renderable(object);
+    }
+}
+
+struct Engine {
+    surface: Surface,
+    state: State,
+    window: Window,
+    updatable: Vec<Box<dyn Update>>,
+    renderable: Vec<Box<dyn Render>>,
+}
+
+impl Engine {
+    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        self.surface.resize(new_size);
+    }
+
+    pub async fn new(window: Window) -> Self {
+        let surface = Surface::new(&window).await;
+        let state = State::new(&window, &surface).await;
+        let updatable = vec![];
+        let renderable = vec![];
+
+        Self {
+            surface,
+            state,
+            window,
+            updatable,
+            renderable,
+        }
+    }
+
+    fn handle_window_event(
+        &mut self,
+        window_id: WindowId,
+        event: &WindowEvent,
+        control_flow: &mut ControlFlow,
+    ) {
+        if window_id == self.window.id() {
+            if !self.state.input(event) {
                 match event {
                     WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
+                        self.resize(*physical_size);
                     }
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.resize(**new_inner_size);
+                        self.resize(**new_inner_size);
                     }
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -285,21 +428,47 @@ pub async fn run() {
                 }
             }
         }
-        Event::RedrawRequested(window_id) if window_id == window.id() => {
-            state.update();
-            match state.render() {
+    }
+
+    fn handle_redraw_requested(&mut self, window_id: WindowId, control_flow: &mut ControlFlow) {
+        if window_id == self.window.id() {
+            // self.state.update();
+            // match self.state.render() {
+            self.update();
+            match self.render() {
                 Ok(_) => {}
                 // Reconfigure the surface if lost
-                Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                Err(wgpu::SurfaceError::Lost) => self.resize(self.surface.size),
                 // The system is out of memory, we should probably quit
                 Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                 // All other errors (Outdated, Timeout) should be resolved by the next frame
                 Err(e) => eprintln!("{:?}", e),
             }
         }
-        Event::MainEventsCleared => {
-            window.request_redraw();
-        }
-        _ => {}
-    });
+    }
+
+    fn update(&mut self) {}
+
+    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.renderable
+            .iter()
+            .try_for_each(|object| object.render(&self.surface));
+        Ok(())
+    }
+
+    fn add_updatable(&mut self, object: Box<dyn Update>) {
+        self.updatable.push(object);
+    }
+
+    fn add_renderable(&mut self, object: Box<dyn Render>) {
+        self.renderable.push(object);
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
+pub async fn run() {
+    let mut app = Application::new().await;
+    let state = State::new(&app.engine.window, &app.engine.surface).await;
+    app.add_renderable(Box::new(state));
+    app.run();
 }
