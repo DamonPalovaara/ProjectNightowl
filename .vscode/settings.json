@@ -1,11 +1,20 @@
 {
     "cSpell.words": [
         "bindgen",
+        "bytemuck",
+        "CLEARSCREEN",
         "Kowalczyk",
+        "multisample",
+        "multiview",
+        "renderable",
         "termcolor",
+        "unclipped",
+        "Unorm",
         "Vulkan",
+        "webgl",
         "wgpu",
         "WGSL",
-        "winit"
+        "winit",
+        "Zeroable"
     ]
 }

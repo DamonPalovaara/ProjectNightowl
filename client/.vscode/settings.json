@@ -1,6 +1,15 @@
 {
     "cSpell.words": [
         "bindgen",
-        "winit"
+        "bytemuck",
+        "Grapher",
+        "multisample",
+        "multiview",
+        "unclipped",
+        "webgl",
+        "wgpu",
+        "wgsl",
+        "winit",
+        "Zeroable"
     ]
 }
