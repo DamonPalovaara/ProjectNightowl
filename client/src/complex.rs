@@ -48,7 +48,7 @@ impl ComplexGrapher {
             surface
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Clear Screen Layout"),
+                    label: Some("Complex Graph Layout"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &shader,
@@ -66,7 +66,7 @@ impl ComplexGrapher {
                     },
                     depth_stencil: None,
                     multisample: wgpu::MultisampleState {
-                        count: 1,
+                        count: 8,
                         mask: !0,
                         alpha_to_coverage_enabled: false,
                     },

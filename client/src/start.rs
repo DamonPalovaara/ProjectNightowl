@@ -1,3 +1,6 @@
+// Since this project gets loaded into the browser as a dynamic library we need our entry point
+// to be part of the library rather than in the main.rs file
+
 use crate::{complex::ComplexGrapher, Application};
 use tracing::info;
 #[cfg(target_arch = "wasm32")]

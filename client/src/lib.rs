@@ -1,3 +1,4 @@
+pub mod camera;
 pub mod complex;
 pub mod pentagon;
 pub mod start;
@@ -11,8 +12,8 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
-const HEIGHT: i32 = 720;
-const WIDTH: i32 = 1280;
+const WIDTH: u32 = 1800;
+const HEIGHT: u32 = 800;
 
 // Objects that can be rendered to the screen
 pub trait Render {
@@ -61,9 +62,36 @@ pub struct Surface {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    multi_sampled_texture: wgpu::TextureView,
 }
 
 impl Surface {
+    fn create_multisampled_framebuffer(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        sample_count: u32,
+    ) -> wgpu::TextureView {
+        let multisampled_texture_extent = wgpu::Extent3d {
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
+            size: multisampled_texture_extent,
+            mip_level_count: 1,
+            sample_count,
+            dimension: wgpu::TextureDimension::D2,
+            format: config.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+            view_formats: &[],
+        };
+
+        device
+            .create_texture(multisampled_frame_descriptor)
+            .create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
     async fn new(window: &Window) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
@@ -93,6 +121,8 @@ impl Surface {
             .await
             .unwrap();
 
+        info!("{:?}", device.limits());
+
         let capabilities = surface.get_capabilities(&adapter);
 
         let surface_format = capabilities
@@ -115,12 +145,15 @@ impl Surface {
 
         surface.configure(&device, &config);
 
+        let multi_sampled_texture = Self::create_multisampled_framebuffer(&device, &config, 8);
+
         Self {
             size,
             surface,
             device,
             config,
             queue,
+            multi_sampled_texture,
         }
     }
 
@@ -291,21 +324,18 @@ impl Engine {
                 });
 
         {
+            let color_attachment = wgpu::RenderPassColorAttachment {
+                view: &self.surface.multi_sampled_texture,
+                resolve_target: Some(&view),
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: false,
+                },
+            };
+
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.7,
-                            g: 0.2,
-                            b: 0.7,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                })],
+                color_attachments: &[Some(color_attachment)],
                 depth_stencil_attachment: None,
             });
 

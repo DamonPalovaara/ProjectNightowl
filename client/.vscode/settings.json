@@ -2,14 +2,18 @@
     "cSpell.words": [
         "bindgen",
         "bytemuck",
+        "framebuffer",
         "Grapher",
         "multisample",
+        "multisampled",
         "multiview",
+        "srgb",
         "unclipped",
         "webgl",
         "wgpu",
         "wgsl",
         "winit",
+        "workgroups",
         "Zeroable"
     ]
 }
