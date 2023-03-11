@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-use super::{Render, RenderData, Surface, Vertex};
+use super::engine::{Engine, Render, RenderData, Vertex};
 
 const CLEAR_SCREEN: &[Vertex] = &[
     Vertex {
@@ -30,73 +30,63 @@ pub struct ComplexGrapher {
 }
 
 impl ComplexGrapher {
-    pub fn new(surface: &Surface) -> Self {
-        let shader = surface
-            .device
-            .create_shader_module(wgpu::include_wgsl!("shaders/complex.wgsl"));
+    pub fn new(engine: &Engine) -> Self {
+        let device = &engine.surface.device;
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/complex.wgsl"));
 
         let render_pipeline_layout =
-            surface
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Clear Screen Layout"),
-                    bind_group_layouts: &[],
-                    push_constant_ranges: &[],
-                });
-
-        let render_pipeline =
-            surface
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Complex Graph Layout"),
-                    layout: Some(&render_pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &shader,
-                        entry_point: "vs_main",
-                        buffers: &[Vertex::desc()],
-                    },
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                        conservative: false,
-                    },
-                    depth_stencil: None,
-                    multisample: wgpu::MultisampleState {
-                        count: 8,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &shader,
-                        entry_point: "fs_main",
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format: surface.config.format,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multiview: None,
-                });
-
-        let vertex_buffer = surface
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Clear Screen"),
-                contents: bytemuck::cast_slice(CLEAR_SCREEN),
-                usage: wgpu::BufferUsages::VERTEX,
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Complex Layout"),
+                bind_group_layouts: &[&engine.uniform_buffer.bind_group_layout],
+                push_constant_ranges: &[],
             });
 
-        let index_buffer = surface
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Clear Screen"),
-                contents: bytemuck::cast_slice(CLEAR_INDICES),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Complex Graph Layout"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[Vertex::desc()],
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 8,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: engine.surface.config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+        });
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Clear Screen"),
+            contents: bytemuck::cast_slice(CLEAR_SCREEN),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Clear Screen"),
+            contents: bytemuck::cast_slice(CLEAR_INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
         Self {
             render_pipeline,

@@ -16,6 +16,7 @@ bytemuck = { version = "1.12.3", features = ["derive"] }
 you-can = "0.0.14"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+instant = "0.1.12"
 tracing-wasm = "0.2.1"
 console_error_panic_hook = "0.1.7"
 console_log = "0.2.0"

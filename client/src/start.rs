@@ -1,7 +1,8 @@
 // Since this project gets loaded into the browser as a dynamic library we need our entry point
 // to be part of the library rather than in the main.rs file
 
-use crate::{complex::ComplexGrapher, Application};
+use crate::complex::ComplexGrapher;
+use crate::engine::Application;
 use tracing::info;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -22,7 +23,7 @@ pub async fn run() {
     info!("Starting up program");
 
     let mut app = Application::new().await;
-    let complex = ComplexGrapher::new(app.surface());
+    let complex = ComplexGrapher::new(&app.engine);
     app.add_render_object(Box::new(complex));
     app.run();
 }
