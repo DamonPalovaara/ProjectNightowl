@@ -4,84 +4,36 @@ struct Running;
 impl EngineStatus for Setup {}
 impl EngineStatus for Running {}
 
-struct _NewEngine<Status: EngineStatus> {
+struct _NewEngine<Status: EngineStatus = Setup> {
     _phantom: PhantomData<Status>,
 }
 
-use crate::time::Time;
+impl<S: EngineStatus> _NewEngine<S> {
+    fn _new() -> Self {
+        Self {
+            _phantom: PhantomData,
+        }
+    }
+}
+
+mod time;
+mod uniforms;
+
 use std::{iter, marker::PhantomData};
+use time::Time;
 #[allow(unused_imports)]
 use tracing::{error, info, warn};
-use wgpu::util::DeviceExt;
+use uniforms::UniformBuffer;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder, WindowId},
 };
 
+#[cfg(target_arch = "wasm32")]
 const WIDTH: u32 = 2048;
+#[cfg(target_arch = "wasm32")]
 const HEIGHT: u32 = 1200;
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Default)]
-pub struct Uniforms {
-    delta_time: f32,
-    run_time: f32,
-    width: f32,
-    height: f32,
-}
-
-pub struct UniformBuffer {
-    pub uniforms: Uniforms,
-    pub buffer: wgpu::Buffer,
-    pub bind_group: wgpu::BindGroup,
-    pub bind_group_layout: wgpu::BindGroupLayout,
-}
-
-impl UniformBuffer {
-    fn new(device: &wgpu::Device, window: &Window) -> Self {
-        let mut uniforms = Uniforms::default();
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("uniform_buffer_layout"),
-        });
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("uniform_bind_group"),
-        });
-
-        let size = window.inner_size();
-        uniforms.width = size.width as f32;
-        uniforms.height = size.height as f32;
-
-        Self {
-            uniforms,
-            buffer,
-            bind_group,
-            bind_group_layout,
-        }
-    }
-}
 
 // Objects that can be rendered to the screen
 pub trait Render {
@@ -100,48 +52,6 @@ pub struct RenderData<'a> {
 // Objects that update every tick
 pub trait Update {
     fn update(&mut self);
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
-}
-
-impl Vertex {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
-
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBUTES,
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, Default)]
-pub struct Vertex2 {
-    pub inner: [f32; 2],
-}
-
-impl Vertex2 {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x2];
-
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBUTES,
-        }
-    }
 }
 
 pub struct Surface {
@@ -345,8 +255,8 @@ impl Engine {
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         self.surface.resize(new_size);
         let size = self.window.inner_size();
-        self.uniform_buffer.uniforms.width = size.width as f32;
-        self.uniform_buffer.uniforms.height = size.height as f32;
+        self.uniform_buffer.update_width(size.width as f32);
+        self.uniform_buffer.update_height(size.height as f32);
     }
 
     pub async fn new(window: Window) -> Engine {
@@ -408,8 +318,8 @@ impl Engine {
     }
 
     fn update(&mut self) {
-        self.uniform_buffer.uniforms.run_time = self.time.run_time();
-        self.uniform_buffer.uniforms.delta_time = self.time.tick();
+        self.uniform_buffer.update_run_time(self.time.run_time());
+        self.uniform_buffer.update_delta_time(self.time.tick());
 
         self.surface.queue.write_buffer(
             &self.uniform_buffer.buffer,

@@ -1,6 +1,7 @@
 use wgpu::util::DeviceExt;
 
-use crate::engine::{Render, RenderData, Surface, Vertex};
+use crate::engine::{Render, RenderData, Surface};
+use crate::types::Vertex;
 
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 

@@ -164,24 +164,21 @@ fn foo(x: f32, y: f32) -> vec2<f32> {
 fn fs_main(
     in: VertexOutput,
 ) -> @location(0) vec4<f32> {
-    let time = uniforms.run_time;// norm_mod_n(uniforms.run_time / 10.0, 1.0);
+    let time = uniforms.run_time * 10.0;
     let time2 = mod_n(uniforms.run_time / 10.0, 1.0);
-	let power = sin(uniforms.run_time / 3.0);
+	let power = 2.0 * sin(uniforms.run_time / 4.0);
+	// let power = 2.0;
 
     let scale = pow(10.0, 1.0 / power);
     let pos = in.clip_position.xy - vec2(uniforms.width / 2.0, uniforms.height / 2.0);
 
-    let z = (pos / 900.0) * scale;
+    let z = (pos / (uniforms.width / 2.0)) * scale;
     let rt = xy_to_rt(z.x, z.y);
-    let uv = z_n(rt.x, rt.y + time, power);
+    let uv = z_n(rt.x, rt.y, power);
 
     let n = 1.0;
     let v = norm_mod_n(uv[1], n);
     let u = norm_mod_n(uv[0], n);
-
-
-    // let u = uv.x;
-    // let v = uv.y;
 
     let u_pow = vec3(2.0, 0.0, 1.0);
     let v_pow = vec3(0.0, 2.0, 1.0);
@@ -193,7 +190,8 @@ fn fs_main(
     );
 
     let hsv = rgb_to_hsv(color);
-    let rgb = hsv_to_rgb(vec3( mod_n(hsv.x + time2, 1.0), hsv.yz));
+	let rgb = hsv_to_rgb(vec3(mod_n(hsv.x + time2, 1.0), hsv.yz));
 
     return vec4(rgb, 1.0);
+	// return vec4(1.0, 0.0, 0.0, 1.0); //RED
 }

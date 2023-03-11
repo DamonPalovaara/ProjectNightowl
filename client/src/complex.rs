@@ -1,6 +1,7 @@
 use wgpu::util::DeviceExt;
 
-use super::engine::{Engine, Render, RenderData, Vertex};
+use crate::engine::{Engine, Render, RenderData};
+use crate::types::Vertex;
 
 const CLEAR_SCREEN: &[Vertex] = &[
     Vertex {
