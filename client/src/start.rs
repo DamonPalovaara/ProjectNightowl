@@ -24,6 +24,6 @@ pub async fn run() {
 
     let mut app = Application::new().await;
     let complex = ComplexGrapher::new(&app.engine);
-    app.add_render_object(Box::new(complex));
+    app.add_engine_object(Box::new(complex));
     app.run();
 }

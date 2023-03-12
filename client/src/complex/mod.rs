@@ -1,24 +1,20 @@
 use wgpu::util::DeviceExt;
 
-use crate::engine::{Engine, Render, RenderData};
-use crate::types::Vertex;
+use crate::engine::{Engine, EngineObject, RenderData};
+use crate::types::Vertex3;
 
-const CLEAR_SCREEN: &[Vertex] = &[
-    Vertex {
-        position: [-1.0, -1.0, 0.0],
-        color: [0.9, 0.1, 0.1],
+const CLEAR_SCREEN: &[Vertex3] = &[
+    Vertex3 {
+        inner: [-1.0, -1.0, 0.0],
     },
-    Vertex {
-        position: [-1.0, 1.0, 0.0],
-        color: [0.1, 0.9, 0.1],
+    Vertex3 {
+        inner: [-1.0, 1.0, 0.0],
     },
-    Vertex {
-        position: [1.0, 1.0, 0.0],
-        color: [0.1, 0.1, 0.9],
+    Vertex3 {
+        inner: [1.0, 1.0, 0.0],
     },
-    Vertex {
-        position: [1.0, -1.0, 0.0],
-        color: [0.8, 0.8, 0.8],
+    Vertex3 {
+        inner: [1.0, -1.0, 0.0],
     },
 ];
 
@@ -32,13 +28,13 @@ pub struct ComplexGrapher {
 
 impl ComplexGrapher {
     pub fn new(engine: &Engine) -> Self {
-        let device = &engine.surface.device;
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/complex.wgsl"));
+        let device = engine.device();
+        let shader = device.create_shader_module(wgpu::include_wgsl!("./complex.wgsl"));
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Complex Layout"),
-                bind_group_layouts: &[&engine.uniform_buffer.bind_group_layout],
+                bind_group_layouts: &[&engine.uniform_bind_group()],
                 push_constant_ranges: &[],
             });
 
@@ -48,7 +44,7 @@ impl ComplexGrapher {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex3::desc()],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -69,7 +65,7 @@ impl ComplexGrapher {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: engine.surface.config.format,
+                    format: engine.surface_format(),
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -97,7 +93,7 @@ impl ComplexGrapher {
     }
 }
 
-impl Render for ComplexGrapher {
+impl EngineObject for ComplexGrapher {
     fn render(&self) -> RenderData {
         RenderData {
             render_pipeline: &self.render_pipeline,

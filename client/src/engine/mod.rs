@@ -8,7 +8,7 @@ struct _NewEngine<Status: EngineStatus = Setup> {
     _phantom: PhantomData<Status>,
 }
 
-impl<S: EngineStatus> _NewEngine<S> {
+impl _NewEngine {
     fn _new() -> Self {
         Self {
             _phantom: PhantomData,
@@ -24,6 +24,7 @@ use time::Time;
 #[allow(unused_imports)]
 use tracing::{error, info, warn};
 use uniforms::UniformBuffer;
+use wgpu::{BindGroupLayout, Device, TextureFormat};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -35,8 +36,9 @@ const WIDTH: u32 = 2048;
 #[cfg(target_arch = "wasm32")]
 const HEIGHT: u32 = 1200;
 
-// Objects that can be rendered to the screen
-pub trait Render {
+pub trait EngineObject {
+    fn start(&mut self, engine: &Engine) {}
+    fn update(&mut self) {}
     fn render(&self) -> RenderData;
 }
 
@@ -49,17 +51,12 @@ pub struct RenderData<'a> {
     pub num_indices: u32,
 }
 
-// Objects that update every tick
-pub trait Update {
-    fn update(&mut self);
-}
-
 pub struct Surface {
     size: winit::dpi::PhysicalSize<u32>,
     surface: wgpu::Surface,
-    pub device: wgpu::Device,
+    device: wgpu::Device,
     queue: wgpu::Queue,
-    pub config: wgpu::SurfaceConfiguration,
+    config: wgpu::SurfaceConfiguration,
     multi_sampled_texture: wgpu::TextureView,
 }
 
@@ -167,30 +164,6 @@ impl Surface {
     }
 }
 
-fn create_window() -> (Window, EventLoop<()>) {
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::dpi::PhysicalSize;
-        window.set_inner_size(PhysicalSize::new(WIDTH, HEIGHT));
-
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("wasm")?;
-                let canvas = web_sys::Element::from(window.canvas());
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to div.");
-    }
-
-    (window, event_loop)
-}
-
 pub struct Application {
     pub engine: Engine,
     event_loop: EventLoop<()>,
@@ -225,30 +198,17 @@ impl Application {
             });
     }
 
-    pub fn add_update_object(&mut self, object: Box<dyn Update>) {
-        self.engine.add_update_object(object);
-    }
-
-    pub fn add_render_object(&mut self, object: Box<dyn Render>) {
-        self.engine.add_render_object(object);
-    }
-
-    pub fn add_update_objects(&mut self, objects: Vec<Box<dyn Update>>) {
-        self.engine.add_update_objects(objects);
-    }
-
-    pub fn add_render_objects(&mut self, objects: Vec<Box<dyn Render>>) {
-        self.engine.add_render_objects(objects);
+    pub fn add_engine_object(&mut self, object: Box<dyn EngineObject>) {
+        self.engine.add_engine_object(object);
     }
 }
 
 pub struct Engine {
-    pub surface: Surface,
+    surface: Surface,
     window: Window,
     time: Time,
-    pub uniform_buffer: UniformBuffer,
-    update_objects: Vec<Box<dyn Update>>,
-    render_objects: Vec<Box<dyn Render>>,
+    uniform_buffer: UniformBuffer,
+    engine_objects: Vec<Box<dyn EngineObject>>,
 }
 
 impl Engine {
@@ -261,8 +221,7 @@ impl Engine {
 
     pub async fn new(window: Window) -> Engine {
         let surface = Surface::new(&window).await;
-        let update_objects = vec![];
-        let render_objects = vec![];
+        let engine_objects = vec![];
         let uniform_buffer = UniformBuffer::new(&surface.device, &window);
         let time = Time::new();
 
@@ -271,8 +230,7 @@ impl Engine {
             window,
             time,
             uniform_buffer,
-            update_objects,
-            render_objects,
+            engine_objects,
         }
     }
 
@@ -326,7 +284,7 @@ impl Engine {
             0,
             bytemuck::cast_slice(&[self.uniform_buffer.uniforms]),
         );
-        self.update_objects
+        self.engine_objects
             .iter_mut()
             .for_each(|object| object.update());
     }
@@ -362,7 +320,7 @@ impl Engine {
 
             render_pass.set_bind_group(0, &self.uniform_buffer.bind_group, &[]);
 
-            for object in &self.render_objects {
+            for object in &self.engine_objects {
                 let render_data = object.render();
                 render_pass.set_pipeline(render_data.render_pipeline);
                 render_pass.set_vertex_buffer(0, render_data.vertex_buffer.slice(..));
@@ -383,19 +341,43 @@ impl Engine {
         Ok(())
     }
 
-    fn add_update_object(&mut self, object: Box<dyn Update>) {
-        self.update_objects.push(object);
+    fn add_engine_object(&mut self, object: Box<dyn EngineObject>) {
+        self.engine_objects.push(object);
     }
 
-    fn add_render_object(&mut self, object: Box<dyn Render>) {
-        self.render_objects.push(object);
+    pub fn uniform_bind_group(&self) -> &BindGroupLayout {
+        &self.uniform_buffer.bind_group_layout
     }
 
-    fn add_update_objects(&mut self, objects: Vec<Box<dyn Update>>) {
-        self.update_objects.extend(objects.into_iter());
+    pub fn device(&self) -> &Device {
+        &self.surface.device
     }
 
-    fn add_render_objects(&mut self, objects: Vec<Box<dyn Render>>) {
-        self.render_objects.extend(objects.into_iter());
+    pub fn surface_format(&self) -> TextureFormat {
+        self.surface.config.format
     }
+}
+
+fn create_window() -> (Window, EventLoop<()>) {
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new().build(&event_loop).unwrap();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::dpi::PhysicalSize;
+        window.set_inner_size(PhysicalSize::new(WIDTH, HEIGHT));
+
+        use winit::platform::web::WindowExtWebSys;
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| {
+                let dst = doc.get_element_by_id("wasm")?;
+                let canvas = web_sys::Element::from(window.canvas());
+                dst.append_child(&canvas).ok()?;
+                Some(())
+            })
+            .expect("Couldn't append canvas to div.");
+    }
+
+    (window, event_loop)
 }
