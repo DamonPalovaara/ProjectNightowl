@@ -126,8 +126,7 @@ impl Surface {
             .formats
             .iter()
             .copied()
-            .filter(|f| f.describe().srgb)
-            .next()
+            .find(|f| f.describe().srgb)
             .unwrap_or(capabilities.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {
@@ -264,8 +263,9 @@ impl Engine {
     }
 
     fn handle_redraw_requested(&mut self, window_id: WindowId, control_flow: &mut ControlFlow) {
+        let delta_time = self.time.tick();
         if window_id == self.window.id() {
-            self.update();
+            self.update(delta_time);
             match self.render() {
                 Ok(_) => {}
                 Err(wgpu::SurfaceError::Lost) => self.resize(self.surface.size),
@@ -275,9 +275,9 @@ impl Engine {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, delta_time: f32) {
         self.uniform_buffer.update_run_time(self.time.run_time());
-        self.uniform_buffer.update_delta_time(self.time.tick());
+        self.uniform_buffer.update_delta_time(delta_time);
 
         self.surface.queue.write_buffer(
             &self.uniform_buffer.buffer,

@@ -3,19 +3,12 @@ use wgpu::util::DeviceExt;
 use crate::engine::{Engine, EngineObject, RenderData};
 use crate::types::Vertex3;
 
+#[rustfmt::skip]
 const CLEAR_SCREEN: &[Vertex3] = &[
-    Vertex3 {
-        inner: [-1.0, -1.0, 0.0],
-    },
-    Vertex3 {
-        inner: [-1.0, 1.0, 0.0],
-    },
-    Vertex3 {
-        inner: [1.0, 1.0, 0.0],
-    },
-    Vertex3 {
-        inner: [1.0, -1.0, 0.0],
-    },
+    Vertex3::new([-1.0, -1.0, 0.0]),
+    Vertex3::new([-1.0,  1.0, 0.0]),
+    Vertex3::new([ 1.0,  1.0, 0.0]),
+    Vertex3::new([ 1.0, -1.0, 0.0]),
 ];
 
 const CLEAR_INDICES: &[u16] = &[0, 3, 2, 2, 1, 0];
