@@ -27,7 +27,7 @@ impl ComplexGrapher {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Complex Layout"),
-                bind_group_layouts: &[&engine.uniform_bind_group()],
+                bind_group_layouts: &[engine.uniform_bind_group()],
                 push_constant_ranges: &[],
             });
 

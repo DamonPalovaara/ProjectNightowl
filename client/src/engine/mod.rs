@@ -37,7 +37,7 @@ const WIDTH: u32 = 2048;
 const HEIGHT: u32 = 1200;
 
 pub trait EngineObject {
-    fn start(&mut self, engine: &Engine) {}
+    fn start(&mut self, _engine: &Engine) {}
     fn update(&mut self) {}
     fn render(&self) -> RenderData;
 }

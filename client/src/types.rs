@@ -30,6 +30,7 @@ macro_rules! match_type {
     (u64, 4) => { VertexFormat::Uint64x4  };
 }
 
+#[allow(clippy::all)]
 macro_rules! vertex {
     ($name:ident, $($field:ident: [$type:tt; $size:tt]),*) => {
         #[repr(C)]
@@ -40,18 +41,18 @@ macro_rules! vertex {
 
         impl $name {
             const ATTRIBUTES: [VertexAttribute; [ $({ $size },)* ].len()] = {
-                let mut shader_location_count = 0;
-                let mut offset_count: u64 = 0;
-                [
-                $({
-                    let offset = offset_count;
-                    let shader_location = shader_location_count;
-                    let format = match_type!($type, $size);
-                    offset_count += std::mem::size_of::<[$type; $size]>() as u64;
-                    shader_location_count += 1;
-                    VertexAttribute { format, offset, shader_location }
-                },)*
-                ]
+                let mut _shader_location_count = 0;
+                let mut _offset_count: u64 = 0;
+                [$(
+                    {
+                        let offset = _offset_count;
+                        let shader_location = _shader_location_count;
+                        let format = match_type!($type, $size);
+                        _offset_count += std::mem::size_of::<[$type; $size]>() as u64;
+                        _shader_location_count += 1;
+                        VertexAttribute { format, offset, shader_location }
+                    }
+                ,)*]
             };
 
             pub fn desc<'a>() -> VertexBufferLayout<'a> {
@@ -63,7 +64,7 @@ macro_rules! vertex {
             }
 
             pub const fn new($($field: [$type; $size]),*) -> Self {
-                $name { $($field),* }
+                Self { $($field),* }
             }
         }
     };
