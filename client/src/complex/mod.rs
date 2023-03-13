@@ -4,14 +4,14 @@ use crate::engine::{Engine, EngineObject, RenderData};
 use crate::types::Vertex3;
 
 #[rustfmt::skip]
-const CLEAR_SCREEN: &[Vertex3] = &[
+const SCREEN: &[Vertex3] = &[
     Vertex3::new([-1.0, -1.0, 0.0]),
     Vertex3::new([-1.0,  1.0, 0.0]),
     Vertex3::new([ 1.0,  1.0, 0.0]),
     Vertex3::new([ 1.0, -1.0, 0.0]),
 ];
 
-const CLEAR_INDICES: &[u16] = &[0, 3, 2, 2, 1, 0];
+const SCREEN_INDICES: &[u16] = &[0, 3, 2, 2, 1, 0];
 
 pub struct ComplexGrapher {
     render_pipeline: wgpu::RenderPipeline,
@@ -58,7 +58,7 @@ impl ComplexGrapher {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: engine.surface_format(),
+                    format: *engine.surface_format(),
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -68,13 +68,13 @@ impl ComplexGrapher {
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Clear Screen"),
-            contents: bytemuck::cast_slice(CLEAR_SCREEN),
+            contents: bytemuck::cast_slice(SCREEN),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Clear Screen"),
-            contents: bytemuck::cast_slice(CLEAR_INDICES),
+            contents: bytemuck::cast_slice(SCREEN_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -87,13 +87,13 @@ impl ComplexGrapher {
 }
 
 impl EngineObject for ComplexGrapher {
-    fn render(&self) -> RenderData {
-        RenderData {
+    fn render(&self) -> Option<RenderData> {
+        Some(RenderData {
             render_pipeline: &self.render_pipeline,
             vertex_buffer: &self.vertex_buffer,
             index_buffer: Some(&self.index_buffer),
             num_vertices: 4,
             num_indices: 6,
-        }
+        })
     }
 }

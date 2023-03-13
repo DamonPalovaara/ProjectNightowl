@@ -1,18 +1,137 @@
-trait EngineStatus {}
-struct Setup;
-struct Running;
-impl EngineStatus for Setup {}
-impl EngineStatus for Running {}
+const SAMPLE_COUNT: u32 = 8;
 
-struct _NewEngine<Status: EngineStatus = Setup> {
-    _phantom: PhantomData<Status>,
+struct _Surface {
+    surface: wgpu::Surface,
+    multi_sampled_texture: Option<wgpu::TextureView>,
+    config: wgpu::SurfaceConfiguration,
 }
 
-impl _NewEngine {
-    fn _new() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
+impl _Surface {
+    fn _new(
+        raw_surface: &wgpu::Surface,
+        adapter: &Adapter,
+        size: PhysicalSize<u32>,
+        device: &_Device,
+    ) -> Self {
+        let capabilities = raw_surface.get_capabilities(&adapter);
+        let surface_format = capabilities
+            .formats
+            .iter()
+            .copied()
+            .find(|f| f.describe().srgb)
+            .unwrap_or(capabilities.formats[0]);
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: capabilities.present_modes[0],
+            alpha_mode: capabilities.alpha_modes[0],
+            view_formats: vec![],
+        };
+        raw_surface.configure(&device.device, &config);
+        let multi_sampled_texture =
+            _Surface::create_multisampled_framebuffer(&device.device, &config, SAMPLE_COUNT);
+
+        todo!()
+    }
+
+    fn create_multisampled_framebuffer(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        sample_count: u32,
+    ) -> wgpu::TextureView {
+        let multisampled_texture_extent = wgpu::Extent3d {
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
+            size: multisampled_texture_extent,
+            mip_level_count: 1,
+            sample_count,
+            dimension: wgpu::TextureDimension::D2,
+            format: config.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+            view_formats: &[],
+        };
+        device
+            .create_texture(multisampled_frame_descriptor)
+            .create_view(&wgpu::TextureViewDescriptor::default())
+    }
+}
+
+struct _Device {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+}
+
+impl _Device {
+    async fn _new(adapter: &Adapter) -> Self {
+        let limits = if cfg!(target_arch = "wasm32") {
+            wgpu::Limits::downlevel_webgl2_defaults()
+        } else {
+            wgpu::Limits::default()
+        };
+
+        let descriptor = wgpu::DeviceDescriptor {
+            features: wgpu::Features::empty(),
+            limits: limits,
+            label: None,
+        };
+
+        let (device, queue) = adapter.request_device(&descriptor, None).await.unwrap();
+        Self { device, queue }
+    }
+}
+
+struct _Engine {
+    window: Window,
+    surface: _Surface,
+    device: _Device,
+    engine_objects: Vec<Box<dyn EngineObject>>,
+    time: Time,
+    uniform_buffer: UniformBuffer,
+    size: winit::dpi::PhysicalSize<u32>,
+}
+
+impl _Engine {
+    async fn _new() -> (Self, EventLoop<()>) {
+        let (window, event_loop) = create_window();
+        let size = window.inner_size();
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+        let raw_surface = unsafe { instance.create_surface(&window).unwrap() };
+        let adapter = Self::_create_adapter(&raw_surface, &instance).await;
+        let device = _Device::_new(&adapter).await;
+        let engine_objects = vec![];
+        let surface = _Surface::_new(&raw_surface, &adapter, size, &device);
+        let time = Time::new();
+        let uniform_buffer = UniformBuffer::new(&device.device, &window);
+
+        (
+            Self {
+                window,
+                surface,
+                device,
+                engine_objects,
+                time,
+                uniform_buffer,
+                size,
+            },
+            event_loop,
+        )
+    }
+
+    async fn _create_adapter(surface: &wgpu::Surface, instance: &Instance) -> Adapter {
+        instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .unwrap()
     }
 }
 
@@ -24,8 +143,9 @@ use time::Time;
 #[allow(unused_imports)]
 use tracing::{error, info, warn};
 use uniforms::UniformBuffer;
-use wgpu::{BindGroupLayout, Device, TextureFormat};
+use wgpu::{Adapter, BindGroupLayout, Device, Instance, TextureFormat};
 use winit::{
+    dpi::PhysicalSize,
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder, WindowId},
@@ -36,13 +156,18 @@ const WIDTH: u32 = 2048;
 #[cfg(target_arch = "wasm32")]
 const HEIGHT: u32 = 1200;
 
+/// Contains all the methods the engine will call on EngineObject
+/// Notice that none of the methods are required, that allows for
+/// flexibility with that don't need to render and such.
 pub trait EngineObject {
     fn start(&mut self, _engine: &Engine) {}
     fn update(&mut self) {}
-    fn render(&self) -> RenderData;
+    fn render(&self) -> Option<RenderData> {
+        None
+    }
 }
 
-// Data that Render objects return to be rendered
+/// Contains all the data that the engine requires to draw an object
 pub struct RenderData<'a> {
     pub render_pipeline: &'a wgpu::RenderPipeline,
     pub vertex_buffer: &'a wgpu::Buffer,
@@ -321,15 +446,18 @@ impl Engine {
             render_pass.set_bind_group(0, &self.uniform_buffer.bind_group, &[]);
 
             for object in &self.engine_objects {
-                let render_data = object.render();
-                render_pass.set_pipeline(render_data.render_pipeline);
-                render_pass.set_vertex_buffer(0, render_data.vertex_buffer.slice(..));
-                match render_data.index_buffer {
-                    None => render_pass.draw(0..render_data.num_vertices, 0..0),
-                    Some(index_buffer) => {
-                        render_pass
-                            .set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                        render_pass.draw_indexed(0..render_data.num_indices, 0, 0..1)
+                if let Some(render_data) = object.render() {
+                    render_pass.set_pipeline(render_data.render_pipeline);
+                    render_pass.set_vertex_buffer(0, render_data.vertex_buffer.slice(..));
+                    match render_data.index_buffer {
+                        None => render_pass.draw(0..render_data.num_vertices, 0..0),
+                        Some(index_buffer) => {
+                            render_pass.set_index_buffer(
+                                index_buffer.slice(..),
+                                wgpu::IndexFormat::Uint16,
+                            );
+                            render_pass.draw_indexed(0..render_data.num_indices, 0, 0..1)
+                        }
                     }
                 }
             }
@@ -353,8 +481,8 @@ impl Engine {
         &self.surface.device
     }
 
-    pub fn surface_format(&self) -> TextureFormat {
-        self.surface.config.format
+    pub fn surface_format(&self) -> &TextureFormat {
+        &self.surface.config.format
     }
 }
 

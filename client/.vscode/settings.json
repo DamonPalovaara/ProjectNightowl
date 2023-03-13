@@ -11,6 +11,7 @@
         "srgb",
         "unclipped",
         "webgl",
+        "webgpu",
         "wgpu",
         "wgsl",
         "winit",

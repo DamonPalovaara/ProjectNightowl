@@ -1,7 +1,4 @@
-use bytemuck::{Pod, Zeroable};
-use std::mem::size_of;
-use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
-
+// Helper macro to match Rust type with webgpu SIMD type
 #[rustfmt::skip]
 macro_rules! match_type {
     (f32, 1) => { VertexFormat::Float32   };
@@ -30,8 +27,8 @@ macro_rules! match_type {
     (u64, 4) => { VertexFormat::Uint64x4  };
 }
 
-#[allow(clippy::all)]
-macro_rules! vertex {
+// Generates a type that can be sent to the GPU
+macro_rules! vertex_struct {
     ($name:ident, $($field:ident: [$type:tt; $size:tt]),*) => {
         #[repr(C)]
         #[derive(Copy, Clone, Debug, Pod, Zeroable, Default)]
@@ -39,8 +36,10 @@ macro_rules! vertex {
             $(pub $field: [$type; $size]),*
         }
 
+        #[allow(dead_code)]
         impl $name {
-            const ATTRIBUTES: [VertexAttribute; [ $({ $size },)* ].len()] = {
+            const ATTRIBUTES: [ VertexAttribute; [$($size),*].len() ] = {
+                // Underscore to ignore clippy unused_assignment lints
                 let mut _shader_location_count = 0;
                 let mut _offset_count: u64 = 0;
                 [$(
@@ -69,7 +68,3 @@ macro_rules! vertex {
         }
     };
 }
-
-vertex!(Vertex3, pos: [f32; 3]);
-vertex!(VertexColor, pos: [f32; 3], color: [f32; 3]);
-vertex!(Vertex2, pos: [f32; 2]);
