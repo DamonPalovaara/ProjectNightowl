@@ -22,8 +22,14 @@ pub async fn run() {
 
     info!("Starting up program");
 
-    let mut app = Application::new().await;
-    let complex = ComplexGrapher::new(&app.engine);
-    app.add_engine_object(Box::new(complex));
-    app.run();
+    // let mut app = Application::new().await;
+    // let complex = ComplexGrapher::new(&app.engine);
+    // app.add_engine_object(Box::new(complex));
+    // app.run();
+
+    use crate::engine::_Engine;
+    let (mut engine, event_loop) = _Engine::new().await;
+    let complex = ComplexGrapher::_new(&engine);
+    engine.add_engine_object(Box::new(complex));
+    engine.run(event_loop);
 }

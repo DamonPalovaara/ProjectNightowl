@@ -78,4 +78,8 @@ impl UniformBuffer {
     pub fn update_height(&mut self, height: f32) {
         self.uniforms.height = height;
     }
+
+    pub fn write(&self, queue: &mut wgpu::Queue) {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniforms]));
+    }
 }
