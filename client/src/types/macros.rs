@@ -38,17 +38,17 @@ macro_rules! vertex_struct {
 
         #[allow(dead_code)]
         impl $name {
-            const ATTRIBUTES: [ VertexAttribute; [$($size),*].len() ] = {
+            const ATTRIBUTES: [ VertexAttribute; count!($($size),*) ] = {
                 // Underscore to ignore clippy unused_assignment lints
-                let mut _shader_location_count = 0;
-                let mut _offset_count: u64 = 0;
+                let mut _shader_location = 0;
+                let mut _offset: u64 = 0;
                 [$(
                     {
-                        let offset = _offset_count;
-                        let shader_location = _shader_location_count;
+                        let offset = _offset;
+                        let shader_location = _shader_location;
                         let format = match_type!($type, $size);
-                        _offset_count += std::mem::size_of::<[$type; $size]>() as u64;
-                        _shader_location_count += 1;
+                        _offset += std::mem::size_of::<[$type; $size]>() as u64;
+                        _shader_location += 1;
                         VertexAttribute { format, offset, shader_location }
                     }
                 ,)*]
@@ -66,5 +66,12 @@ macro_rules! vertex_struct {
                 Self { $($field),* }
             }
         }
+    };
+}
+
+macro_rules! count {
+    () => { 0 };
+    ($first:literal $(, $rest:literal)*) => {
+        1 + count!($($rest),*)
     };
 }
