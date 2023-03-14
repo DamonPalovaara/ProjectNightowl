@@ -8,12 +8,12 @@ struct _Surface {
 
 impl _Surface {
     fn _new(
-        raw_surface: &wgpu::Surface,
+        surface: wgpu::Surface,
         adapter: &Adapter,
         size: PhysicalSize<u32>,
         device: &_Device,
     ) -> Self {
-        let capabilities = raw_surface.get_capabilities(&adapter);
+        let capabilities = surface.get_capabilities(&adapter);
         let surface_format = capabilities
             .formats
             .iter()
@@ -29,11 +29,18 @@ impl _Surface {
             alpha_mode: capabilities.alpha_modes[0],
             view_formats: vec![],
         };
-        raw_surface.configure(&device.device, &config);
-        let multi_sampled_texture =
-            _Surface::create_multisampled_framebuffer(&device.device, &config, SAMPLE_COUNT);
+        surface.configure(&device.device, &config);
+        let multi_sampled_texture = Some(_Surface::create_multisampled_framebuffer(
+            &device.device,
+            &config,
+            SAMPLE_COUNT,
+        ));
 
-        todo!()
+        Self {
+            surface,
+            multi_sampled_texture,
+            config,
+        }
     }
 
     fn create_multisampled_framebuffer(
@@ -101,11 +108,11 @@ impl _Engine {
         let (window, event_loop) = create_window();
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-        let raw_surface = unsafe { instance.create_surface(&window).unwrap() };
-        let adapter = Self::_create_adapter(&raw_surface, &instance).await;
+        let surface = unsafe { instance.create_surface(&window).unwrap() };
+        let adapter = Self::_create_adapter(&surface, &instance).await;
         let device = _Device::_new(&adapter).await;
         let engine_objects = vec![];
-        let surface = _Surface::_new(&raw_surface, &adapter, size, &device);
+        let surface = _Surface::_new(surface, &adapter, size, &device);
         let time = Time::new();
         let uniform_buffer = UniformBuffer::new(&device.device, &window);
 
@@ -133,12 +140,14 @@ impl _Engine {
             .await
             .unwrap()
     }
+
+    fn _resize(&mut self) {}
 }
 
 mod time;
 mod uniforms;
 
-use std::{iter, marker::PhantomData};
+use std::iter;
 use time::Time;
 #[allow(unused_imports)]
 use tracing::{error, info, warn};
@@ -152,9 +161,9 @@ use winit::{
 };
 
 #[cfg(target_arch = "wasm32")]
-const WIDTH: u32 = 2048;
+const WIDTH: u32 = 1800;
 #[cfg(target_arch = "wasm32")]
-const HEIGHT: u32 = 1200;
+const HEIGHT: u32 = 1000;
 
 /// Contains all the methods the engine will call on EngineObject
 /// Notice that none of the methods are required, that allows for

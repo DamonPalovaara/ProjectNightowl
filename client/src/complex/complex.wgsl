@@ -145,6 +145,10 @@ fn z_n(r: f32, t: f32, n: f32) -> vec2<f32> {
     return vec2(pow(r, n) * cos(n * t), pow(r, n) * sin(n * t));
 }
 
+fn ln_z(r: f32, t: f32) -> vec2<f32> {
+	return vec2(log(r), t);
+}
+
 // f(x, y) = e^(x + iy)
 fn e_z(x: f32, y: f32) -> vec2<f32> {
     return vec2(exp(x) * cos(y), exp(x) * sin(y));
@@ -153,6 +157,25 @@ fn e_z(x: f32, y: f32) -> vec2<f32> {
 // Converts rectangular to polar
 fn xy_to_rt(x: f32, y: f32) -> vec2<f32> {
     return vec2(pow(x * x + y * y, 0.5), atan2(y, x));
+}
+
+fn cos_z(x: f32, y: f32) -> vec2<f32> {
+	let u = cos(x) * cosh(y);
+	let v = -1.0 * sin(x) * sinh(y);
+	return vec2(u, v);
+}
+
+fn sin_z(x: f32, y: f32) -> vec2<f32> {
+	let u = sin(x) * cosh(y);
+	let v = cos(x) * sinh(y);
+	return vec2(u, v);
+}
+
+fn tan_z(x: f32, y: f32) -> vec2<f32> {
+	let u = cos(x) * sin(x);
+	let v = cosh(y) * sinh(y);
+	let phi = pow(cos(x), 2.0) * pow(cosh(y), 2.0) + pow(sin(x), 2.0) * pow(sinh(y), 2.0);
+	return vec2(u / phi, v / phi);
 }
 
 fn foo(x: f32, y: f32) -> vec2<f32> {
@@ -165,7 +188,7 @@ fn fs_main(
 ) -> @location(0) vec4<f32> {
     let time = uniforms.run_time * 10.0;
     let time2 = mod_n(uniforms.run_time / 10.0, 1.0);
-	let power = 2.0 * sin(uniforms.run_time / 4.0);
+	let power = 4.0 * sin(uniforms.run_time / 4.0);
 	// let power = 2.0;
 
     let scale = pow(10.0, 1.0 / power);
@@ -173,11 +196,13 @@ fn fs_main(
 
     let z = (pos / (uniforms.width / 2.0)) * scale;
     let rt = xy_to_rt(z.x, z.y);
-    let uv = z_n(rt.x, rt.y, power);
+	let uv = z_n(rt.x, rt.y, power);
+	// let uv = cos_z(ez.x, ez.y);
+
 
     let n = 1.0;
-    let v = norm_mod_n(uv[1], n);
     let u = norm_mod_n(uv[0], n);
+    let v = norm_mod_n(uv[1], n);
 
     let u_pow = vec3(2.0, 0.0, 1.0);
     let v_pow = vec3(0.0, 2.0, 1.0);
