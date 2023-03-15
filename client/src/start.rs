@@ -2,7 +2,7 @@
 // to be part of the library rather than in the main.rs file
 
 use crate::complex::ComplexGrapher;
-use crate::engine::Application;
+use crate::engine::Engine;
 use tracing::info;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -22,13 +22,7 @@ pub async fn run() {
 
     info!("Starting up program");
 
-    // let mut app = Application::new().await;
-    // let complex = ComplexGrapher::new(&app.engine);
-    // app.add_engine_object(Box::new(complex));
-    // app.run();
-
-    use crate::engine::_Engine;
-    let (mut engine, event_loop) = _Engine::new().await;
+    let (mut engine, event_loop) = Engine::new().await;
     let complex = ComplexGrapher::_new(&engine);
     engine.add_engine_object(Box::new(complex));
     engine.run(event_loop);

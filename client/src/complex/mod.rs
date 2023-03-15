@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-use crate::engine::{Engine, EngineObject, RenderData, _Engine};
+use crate::engine::{Engine, EngineObject, RenderData};
 use crate::types::Vertex3;
 
 #[rustfmt::skip]
@@ -20,72 +20,7 @@ pub struct ComplexGrapher {
 }
 
 impl ComplexGrapher {
-    pub fn _new(engine: &_Engine) -> Self {
-        let device = engine.device();
-        let shader = device.create_shader_module(wgpu::include_wgsl!("./complex.wgsl"));
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Complex Layout"),
-                bind_group_layouts: &[engine.uniform_bind_group()],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Complex Graph Layout"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[Vertex3::desc()],
-            },
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 8,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: *engine.surface_format(),
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            multiview: None,
-        });
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Clear Screen"),
-            contents: bytemuck::cast_slice(SCREEN),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Clear Screen"),
-            contents: bytemuck::cast_slice(SCREEN_INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        Self {
-            render_pipeline,
-            vertex_buffer,
-            index_buffer,
-        }
-    }
-
-    pub fn new(engine: &Engine) -> Self {
+    pub fn _new(engine: &Engine) -> Self {
         let device = engine.device();
         let shader = device.create_shader_module(wgpu::include_wgsl!("./complex.wgsl"));
 
