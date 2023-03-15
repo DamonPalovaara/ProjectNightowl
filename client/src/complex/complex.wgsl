@@ -14,6 +14,7 @@ struct Uniforms {
     width: f32,
     height: f32
 };
+
 @group(0) @binding(0)
 var<uniform> uniforms: Uniforms;
 
@@ -189,18 +190,37 @@ fn fs_main(
     let time = uniforms.run_time * 10.0;
     let time2 = mod_n(uniforms.run_time / 10.0, 1.0);
 	let power = 4.0 * sin(uniforms.run_time / 4.0);
-	// let power = 2.0;
+    let scale = 2.0 * 3.14159; //pow(10.0, 1.0 / power);
 
-    let scale = pow(10.0, 1.0 / power);
     let pos = in.clip_position.xy - vec2(uniforms.width / 2.0, uniforms.height / 2.0);
 
-    let z = (pos / (uniforms.width / 2.0)) * scale;
-    let rt = xy_to_rt(z.x, z.y);
-	let uv = z_n(rt.x, rt.y, power);
-	// let uv = cos_z(ez.x, ez.y);
+	var offsets = array(
+		vec2<f32>( -0.25, -0.25),
+		vec2<f32>( -0.25,  0.0 ),
+		vec2<f32>( -0.25,  0.25),
+		vec2<f32>(  0.0,  -0.25),
+		vec2<f32>(  0.0,   0.0 ),
+		vec2<f32>(  0.0,   0.25),
+		vec2<f32>(  0.25, -0.25),
+		vec2<f32>(  0.25,  0.0 ),
+		vec2<f32>(  0.25,  0.25),
+	);
 
+	var temp_pos: vec2<f32> = vec2<f32>();
+	var z = vec2<f32>();
+	var rt = vec2<f32>();
+	var uv_total = vec2<f32>();
+	for (var i: i32 = 0; i < 9; i++) {
+		temp_pos = pos + offsets[i];
+		z = (temp_pos / (uniforms.width / 2.0)) * scale;
+		rt = xy_to_rt(z.x, z.y);
+		// uv_total += z_n(rt.x, rt.y, power);
+		uv_total = cos_z(z.x, z.y);
+	}
 
-    let n = 1.0;
+	let uv = uv_total / 9.0;
+
+    let n = 0.05;
     let u = norm_mod_n(uv[0], n);
     let v = norm_mod_n(uv[1], n);
 
@@ -217,5 +237,4 @@ fn fs_main(
 	let rgb = hsv_to_rgb(vec3(mod_n(hsv.x + time2, 1.0), hsv.yz));
 
     return vec4(rgb, 1.0);
-	// return vec4(1.0, 0.0, 0.0, 1.0); //RED
 }

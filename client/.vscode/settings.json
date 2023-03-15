@@ -4,6 +4,7 @@
         "bytemuck",
         "framebuffer",
         "Grapher",
+        "msaa",
         "multisample",
         "multisampled",
         "multiview",

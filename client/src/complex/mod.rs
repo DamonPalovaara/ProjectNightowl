@@ -50,7 +50,7 @@ impl ComplexGrapher {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState {
-                count: 8,
+                count: engine.sample_count(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },

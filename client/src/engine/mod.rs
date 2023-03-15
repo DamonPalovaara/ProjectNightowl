@@ -1,4 +1,3 @@
-const SAMPLE_COUNT: u32 = 8;
 #[cfg(target_arch = "wasm32")]
 const WIDTH: u32 = 1800;
 #[cfg(target_arch = "wasm32")]
@@ -20,6 +19,10 @@ use winit::{
     window::{Window, WindowBuilder, WindowId},
 };
 
+pub struct EngineConfig {
+    pub msaa: Option<u32>,
+}
+
 struct Surface {
     surface: wgpu::Surface,
     multi_sampled_texture: Option<wgpu::TextureView>,
@@ -32,6 +35,7 @@ impl Surface {
         adapter: &Adapter,
         size: PhysicalSize<u32>,
         device: &Device,
+        engine_config: &EngineConfig,
     ) -> Self {
         let capabilities = surface.get_capabilities(adapter);
         let surface_format = capabilities
@@ -50,11 +54,15 @@ impl Surface {
             view_formats: vec![],
         };
         surface.configure(&device.device, &config);
-        let multi_sampled_texture = Some(Surface::create_multisampled_framebuffer(
-            &device.device,
-            &config,
-            SAMPLE_COUNT,
-        ));
+
+        let multi_sampled_texture = match engine_config.msaa {
+            Some(sample_count) => Some(create_multisampled_framebuffer(
+                &device.device,
+                &config,
+                sample_count,
+            )),
+            None => None,
+        };
 
         Self {
             surface,
@@ -67,31 +75,6 @@ impl Surface {
         self.config.width = new_size.width;
         self.config.height = new_size.height;
         self.surface.configure(&device.device, &self.config);
-    }
-
-    fn create_multisampled_framebuffer(
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
-        sample_count: u32,
-    ) -> wgpu::TextureView {
-        let multisampled_texture_extent = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
-            depth_or_array_layers: 1,
-        };
-        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
-            size: multisampled_texture_extent,
-            mip_level_count: 1,
-            sample_count,
-            dimension: wgpu::TextureDimension::D2,
-            format: config.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: None,
-            view_formats: &[],
-        };
-        device
-            .create_texture(multisampled_frame_descriptor)
-            .create_view(&wgpu::TextureViewDescriptor::default())
     }
 
     fn get_texture(&self) -> Result<wgpu::SurfaceTexture, wgpu::SurfaceError> {
@@ -145,18 +128,19 @@ pub struct Engine {
     time: Time,
     uniform_buffer: UniformBuffer,
     size: winit::dpi::PhysicalSize<u32>,
+    config: EngineConfig,
 }
 
 impl Engine {
-    pub async fn new() -> (Self, EventLoop<()>) {
+    pub async fn new(config: EngineConfig) -> (Self, EventLoop<()>) {
         let (window, event_loop) = create_window();
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
         let surface = unsafe { instance.create_surface(&window).unwrap() };
-        let adapter = Self::create_adapter(&surface, &instance).await;
+        let adapter = create_adapter(&surface, &instance).await;
         let device = Device::new(&adapter).await;
         let engine_objects = vec![];
-        let surface = Surface::new(surface, &adapter, size, &device);
+        let surface = Surface::new(surface, &adapter, size, &device, &config);
         let time = Time::new();
         let uniform_buffer = UniformBuffer::new(&device.device, &window);
 
@@ -169,20 +153,10 @@ impl Engine {
                 time,
                 uniform_buffer,
                 size,
+                config,
             },
             event_loop,
         )
-    }
-
-    async fn create_adapter(surface: &wgpu::Surface, instance: &Instance) -> Adapter {
-        instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .unwrap()
     }
 
     fn resize(&mut self, new_size: &winit::dpi::PhysicalSize<u32>) {
@@ -323,6 +297,14 @@ impl Engine {
         Ok(())
     }
 
+    pub fn sample_count(&self) -> u32 {
+        if let Some(sample_count) = self.config.msaa {
+            sample_count
+        } else {
+            1
+        }
+    }
+
     pub fn device(&self) -> &wgpu::Device {
         &self.device.device
     }
@@ -377,4 +359,40 @@ fn create_window() -> (Window, EventLoop<()>) {
     }
 
     (window, event_loop)
+}
+
+fn create_multisampled_framebuffer(
+    device: &wgpu::Device,
+    config: &wgpu::SurfaceConfiguration,
+    sample_count: u32,
+) -> wgpu::TextureView {
+    let multisampled_texture_extent = wgpu::Extent3d {
+        width: config.width,
+        height: config.height,
+        depth_or_array_layers: 1,
+    };
+    let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
+        size: multisampled_texture_extent,
+        mip_level_count: 1,
+        sample_count,
+        dimension: wgpu::TextureDimension::D2,
+        format: config.format,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        label: None,
+        view_formats: &[],
+    };
+    device
+        .create_texture(multisampled_frame_descriptor)
+        .create_view(&wgpu::TextureViewDescriptor::default())
+}
+
+async fn create_adapter(surface: &wgpu::Surface, instance: &Instance) -> Adapter {
+    instance
+        .request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: Some(surface),
+            force_fallback_adapter: false,
+        })
+        .await
+        .unwrap()
 }
