@@ -3,6 +3,7 @@
 
 use crate::complex::ComplexGrapher;
 use crate::engine::{Engine, EngineConfig};
+use crate::user_interface::UserInterface;
 use tracing::info;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -25,7 +26,9 @@ pub async fn run() {
     let engine_config = EngineConfig { msaa: None };
 
     let (mut engine, event_loop) = Engine::new(engine_config).await;
-    let complex = ComplexGrapher::_new(&engine);
+    let complex = ComplexGrapher::new(&engine);
+    let ui = UserInterface::new(&engine);
     engine.add_engine_object(Box::new(complex));
+    engine.add_engine_object(Box::new(ui));
     engine.run(event_loop);
 }
