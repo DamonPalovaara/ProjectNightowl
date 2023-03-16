@@ -188,42 +188,30 @@ fn fs_main(
     let time = uniforms.run_time * 10.0;
     let time2 = mod_n(uniforms.run_time / 10.0, 1.0);
 	let power = 4.0 * sin(uniforms.run_time / 4.0);
-    let scale = 2.0 * 3.14159; //pow(10.0, 1.0 / power);
+    let scale = pow(20.0, 1.0 / power);
 
     let pos = in.clip_position.xy - vec2(uniforms.width / 2.0, uniforms.height / 2.0);
-
-	var offsets = array(
-		vec2<f32>( -0.25, -0.25),
-		vec2<f32>( -0.25,  0.0 ),
-		vec2<f32>( -0.25,  0.25),
-		vec2<f32>(  0.0,  -0.25),
-		vec2<f32>(  0.0,   0.0 ),
-		vec2<f32>(  0.0,   0.25),
-		vec2<f32>(  0.25, -0.25),
-		vec2<f32>(  0.25,  0.0 ),
-		vec2<f32>(  0.25,  0.25),
-	);
-
-	var temp_pos: vec2<f32> = vec2<f32>();
-	var z = vec2<f32>();
-	var rt = vec2<f32>();
-	var uv_total = vec2<f32>();
-	for (var i: i32 = 0; i < 9; i++) {
-		temp_pos = pos + offsets[i];
-		z = (temp_pos / (uniforms.width / 2.0)) * scale;
-		rt = xy_to_rt(z.x, z.y);
-		// uv_total += z_n(rt.x, rt.y, power);
-		uv_total = cos_z(z.x, z.y);
+    let n = 1.0;
+	let factor = 1.0 / 3.0;
+	var uv = vec2<f32>();
+	// Multi sample loop
+	for (var i: i32 = -1; i <= 1; i++) {
+		for (var j: i32 = -1; j <= 1; j++) {
+			let x = ((pos.x + (factor * f32(i))) / (uniforms.width / 2.0)) * scale;
+			let y = ((pos.y + (factor * f32(j))) / (uniforms.width / 2.0)) * scale;
+			let rt = xy_to_rt(x, y);
+			let out = z_n(rt.x, rt.y, power);
+			uv.x += norm_mod_n(out.x, n);
+			uv.y += norm_mod_n(out.y, n);
+		}
 	}
 
-	let uv = uv_total / 9.0;
+	uv = uv / 9.0;	
+	let u = uv.x;
+	let v = uv.y;
 
-    let n = 0.05;
-    let u = norm_mod_n(uv[0], n);
-    let v = norm_mod_n(uv[1], n);
-
-    let u_pow = vec3(2.0, 0.0, 1.0);
-    let v_pow = vec3(0.0, 2.0, 1.0);
+    let u_pow = vec3(2.0, 0.0, 0.0);
+    let v_pow = vec3(0.0, 2.0, 0.0);
 
 	let color = vec3(
         pow(u, u_pow[0]) * pow(v, v_pow[0]), 
@@ -232,7 +220,7 @@ fn fs_main(
     );
 
     let hsv = rgb_to_hsv(color);
-	let rgb = hsv_to_rgb(vec3(mod_n(hsv.x + time2, 1.0), hsv.yz));
+	let rgb = hsv_to_rgb(vec3(mod_n(hsv.x , 1.0), hsv.yz));
 
     return vec4(rgb, 1.0);
 }
