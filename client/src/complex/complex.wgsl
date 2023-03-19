@@ -187,20 +187,24 @@ fn fs_main(
 ) -> @location(0) vec4<f32> {
     let time = uniforms.run_time * 10.0;
     let time2 = mod_n(uniforms.run_time / 10.0, 1.0);
-	let power = 4.0 * sin(uniforms.run_time / 4.0);
-    let scale = pow(20.0, 1.0 / power);
+	let power = 4.0 * sin(uniforms.run_time / 8.0);
+    let scale = pow(10.0, 1.0 / power);
 
-    let pos = in.clip_position.xy - vec2(uniforms.width / 2.0, uniforms.height / 2.0);
+	let offset = vec2(uniforms.width / 2.0, uniforms.height / 2.0);
+
+    let pos = in.clip_position.xy - offset;
     let n = 1.0;
 	let factor = 1.0 / 3.0;
 	var uv = vec2<f32>();
 	// Multi sample loop
 	for (var i: i32 = -1; i <= 1; i++) {
 		for (var j: i32 = -1; j <= 1; j++) {
-			let x = ((pos.x + (factor * f32(i))) / (uniforms.width / 2.0)) * scale;
-			let y = ((pos.y + (factor * f32(j))) / (uniforms.width / 2.0)) * scale;
+			let x = ((pos.x + (factor * f32(i))) / uniforms.width) * 2.0 * scale;
+			let y = ((pos.y + (factor * f32(j))) / uniforms.width) * 2.0 * scale;
 			let rt = xy_to_rt(x, y);
+			// let xy = z_n(x, y, 2.0);
 			let out = z_n(rt.x, rt.y, power);
+			// let out = e_z(x, y);
 			uv.x += norm_mod_n(out.x, n);
 			uv.y += norm_mod_n(out.y, n);
 		}
@@ -210,8 +214,8 @@ fn fs_main(
 	let u = uv.x;
 	let v = uv.y;
 
-    let u_pow = vec3(2.0, 0.0, 0.0);
-    let v_pow = vec3(0.0, 2.0, 0.0);
+    let u_pow = vec3(2.0, 0.0, 1.0);
+    let v_pow = vec3(0.0, 2.0, 1.0);
 
 	let color = vec3(
         pow(u, u_pow[0]) * pow(v, v_pow[0]), 
@@ -222,5 +226,6 @@ fn fs_main(
     let hsv = rgb_to_hsv(color);
 	let rgb = hsv_to_rgb(vec3(mod_n(hsv.x , 1.0), hsv.yz));
 
-    return vec4(rgb, 1.0);
+	let out = rgb;
+    return vec4(out, 1.0);
 }

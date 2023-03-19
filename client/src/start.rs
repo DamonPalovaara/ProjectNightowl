@@ -28,7 +28,7 @@ pub async fn run() {
     let (mut engine, event_loop) = Engine::new(engine_config).await;
     let complex = ComplexGrapher::new(&engine);
     let ui = UserInterface::new(&engine);
-    engine.add_engine_object(Box::new(complex));
-    //engine.add_engine_object(Box::new(ui));
+    // engine.add_engine_object(Box::new(complex));
+    engine.add_engine_object(Box::new(ui));
     engine.run(event_loop);
 }

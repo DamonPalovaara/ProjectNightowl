@@ -245,6 +245,7 @@ impl Engine {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = self.device.create_encoder();
+
         {
             let color_attachment = match &self.surface.multi_sampled_texture {
                 Some(multi_sampled_texture) => wgpu::RenderPassColorAttachment {
@@ -292,6 +293,7 @@ impl Engine {
                 }
             })
         }
+
         self.device.submit(iter::once(encoder.finish()));
         output.present();
         Ok(())
