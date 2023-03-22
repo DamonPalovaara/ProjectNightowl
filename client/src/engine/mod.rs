@@ -122,6 +122,7 @@ impl Device {
 
 pub struct Engine {
     window: Window,
+    event_loop: Option<EventLoop<()>>,
     surface: Surface,
     device: Device,
     engine_objects: Vec<Box<dyn EngineObject>>,
@@ -132,8 +133,9 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub async fn new(config: EngineConfig) -> (Self, EventLoop<()>) {
+    pub async fn new(config: EngineConfig) -> Self {
         let (window, event_loop) = create_window();
+        let event_loop = Some(event_loop);
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
         let surface = unsafe { instance.create_surface(&window).unwrap() };
@@ -144,19 +146,17 @@ impl Engine {
         let time = Time::new();
         let uniform_buffer = UniformBuffer::new(&device.device, &window);
 
-        (
-            Self {
-                window,
-                surface,
-                device,
-                engine_objects,
-                time,
-                uniform_buffer,
-                size,
-                config,
-            },
+        Self {
+            window,
             event_loop,
-        )
+            surface,
+            device,
+            engine_objects,
+            time,
+            uniform_buffer,
+            size,
+            config,
+        }
     }
 
     fn resize(&mut self, new_size: &winit::dpi::PhysicalSize<u32>) {
@@ -168,7 +168,8 @@ impl Engine {
         }
     }
 
-    pub fn run(mut self, event_loop: EventLoop<()>) {
+    pub fn run(mut self) {
+        let event_loop = self.event_loop.take().unwrap();
         event_loop.run(move |event, _, control_flow| match event {
             Event::WindowEvent { window_id, event } => {
                 self.handle_window_event(window_id, &event, control_flow);
@@ -398,3 +399,25 @@ async fn create_adapter(surface: &wgpu::Surface, instance: &Instance) -> Adapter
         .await
         .unwrap()
 }
+
+// struct TestEngine {
+//     engine: Engine,
+//     event_loop: Option<EventLoop<()>>,
+// }
+
+// impl TestEngine {
+//     fn run(mut self) {
+//         let event_loop = self.take_event_loop();
+//         event_loop.run(move |_, _, event| match event {
+//             _ => self.foo(),
+//         })
+//     }
+
+//     fn take_event_loop(&mut self) -> EventLoop<()> {
+//         self.event_loop.take().unwrap()
+//     }
+
+//     fn foo(&mut self) {
+//         todo!()
+//     }
+// }

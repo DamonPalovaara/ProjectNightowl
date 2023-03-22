@@ -187,7 +187,7 @@ fn fs_main(
 ) -> @location(0) vec4<f32> {
     let time = uniforms.run_time * 10.0;
     let time2 = mod_n(uniforms.run_time / 10.0, 1.0);
-	let power = 4.0 * sin(uniforms.run_time / 8.0);
+	let power = -2.0; // * sin(uniforms.run_time / 8.0);
     let scale = pow(10.0, 1.0 / power);
 
 	let offset = vec2(uniforms.width / 2.0, uniforms.height / 2.0);
@@ -214,8 +214,8 @@ fn fs_main(
 	let u = uv.x;
 	let v = uv.y;
 
-    let u_pow = vec3(2.0, 0.0, 1.0);
-    let v_pow = vec3(0.0, 2.0, 1.0);
+    let u_pow = vec3(2.0, 0.0, 0.0);
+    let v_pow = vec3(0.0, 2.0, 0.0);
 
 	let color = vec3(
         pow(u, u_pow[0]) * pow(v, v_pow[0]), 
