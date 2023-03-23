@@ -1,17 +1,17 @@
 use wgpu::util::DeviceExt;
 
 use crate::engine::{Engine, EngineObject, RenderData};
-use crate::types::Vertex3;
+use crate::types::Vertex2;
 
 #[rustfmt::skip]
-const TEMP: &[Vertex3] = &[
-    Vertex3::new([-0.25, -0.25, 0.0]),
-    Vertex3::new([ 0.25, -0.25, 0.0]),
-    Vertex3::new([-0.25,  0.25, 0.0]),
-    Vertex3::new([ 0.25,  0.25, 0.0]),
+const SQUARE: &[Vertex2] = &[
+    Vertex2::new([ 0.0,  0.0]),
+    Vertex2::new([ 1.0,  0.0]),
+    Vertex2::new([ 0.0,  1.0]),
+    Vertex2::new([ 1.0,  1.0]),
 ];
 
-const TEMP_INDICES: &[u16] = &[0, 1, 2, 3];
+const SQUARE_INDICES: &[u16] = &[0, 1, 2, 3];
 
 pub struct UserInterface {
     render_pipeline: wgpu::RenderPipeline,
@@ -37,7 +37,7 @@ impl UserInterface {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex3::desc()],
+                buffers: &[Vertex2::desc()],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleStrip,
@@ -76,13 +76,13 @@ impl UserInterface {
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("UI Vertex Buffer"),
-            contents: bytemuck::cast_slice(TEMP),
+            contents: bytemuck::cast_slice(SQUARE),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("UI Index Buffer"),
-            contents: bytemuck::cast_slice(TEMP_INDICES),
+            contents: bytemuck::cast_slice(SQUARE_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -101,7 +101,7 @@ impl EngineObject for UserInterface {
             vertex_buffer: &self.vertex_buffer,
             index_buffer: Some(&self.index_buffer),
             num_vertices: 4,
-            num_indices: TEMP_INDICES.len() as u32,
+            num_indices: SQUARE_INDICES.len() as u32,
         })
     }
 }

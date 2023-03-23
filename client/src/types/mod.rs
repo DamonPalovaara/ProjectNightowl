@@ -8,17 +8,7 @@ mod macros;
 use paste::paste;
 
 vertex_struct!(Vertex3, pos: [f32; 3]);
-vertex_struct!(VertexColor, pos: [f32; 3], color: [f32; 3]);
 vertex_struct!(Vertex2, pos: [f32; 2]);
-vertex_struct!(Vertex4u8, inner: [u8; 4]);
-vertex_struct!(
-    VertexSingles,
-    a: [f32; 1],
-    b: [u32; 1],
-    c: [i32; 1],
-    d: [u32; 1],
-    e: [f64; 1],
-);
 
 #[cfg(test)]
 mod tests {
