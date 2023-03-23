@@ -3,12 +3,11 @@ use wgpu::util::DeviceExt;
 use crate::engine::{Engine, EngineObject, RenderData};
 use crate::types::Vertex2;
 
-#[rustfmt::skip]
 const SQUARE: &[Vertex2] = &[
-    Vertex2::new([ 0.0,  0.0]),
-    Vertex2::new([ 1.0,  0.0]),
-    Vertex2::new([ 0.0,  1.0]),
-    Vertex2::new([ 1.0,  1.0]),
+    Vertex2::new([0.0, 0.0]),
+    Vertex2::new([1.0, 0.0]),
+    Vertex2::new([0.0, 1.0]),
+    Vertex2::new([1.0, 1.0]),
 ];
 
 const SQUARE_INDICES: &[u16] = &[0, 1, 2, 3];

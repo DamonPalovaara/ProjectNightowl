@@ -1,14 +1,14 @@
 use wgpu::util::DeviceExt;
 
 use crate::engine::{Engine, EngineObject, RenderData};
-use crate::types::Vertex3;
+use crate::types::Vertex2;
 
 #[rustfmt::skip]
-const SCREEN: &[Vertex3] = &[
-    Vertex3::new([-1.0, -1.0, 1.0]),
-    Vertex3::new([-1.0,  1.0, 1.0]),
-    Vertex3::new([ 1.0,  1.0, 1.0]),
-    Vertex3::new([ 1.0, -1.0, 1.0]),
+const SCREEN: &[Vertex2] = &[
+    Vertex2::new([-1.0, -1.0]),
+    Vertex2::new([-1.0,  1.0]),
+    Vertex2::new([ 1.0,  1.0]),
+    Vertex2::new([ 1.0, -1.0]),
 ];
 
 const SCREEN_INDICES: &[u16] = &[0, 3, 2, 2, 1, 0];
@@ -37,7 +37,7 @@ impl ComplexGrapher {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex3::desc()],
+                buffers: &[Vertex2::desc()],
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,

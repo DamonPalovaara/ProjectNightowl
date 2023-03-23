@@ -1,14 +1,13 @@
 use bytemuck::{Pod, Zeroable};
+use paste::paste;
 use std::mem::size_of;
 use wgpu::{BufferAddress, VertexAttribute, VertexBufferLayout, VertexFormat::*, VertexStepMode};
 
 #[macro_use]
 mod macros;
 
-use paste::paste;
-
-vertex_struct!(Vertex3, pos: [f32; 3]);
 vertex_struct!(Vertex2, pos: [f32; 2]);
+vertex_struct!(Vertex3, pos: [f32; 3]);
 
 #[cfg(test)]
 mod tests {

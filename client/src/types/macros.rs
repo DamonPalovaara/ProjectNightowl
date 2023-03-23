@@ -15,6 +15,7 @@ macro_rules! match_type {
 }
 
 // Generates a type that can be sent to the GPU
+// Pod requires a 0 padding alignment using C alignment rules
 macro_rules! vertex_struct {
     ($name:ident, $($field:ident: [$type:tt; $size:tt]),* $(,)?) => {
         #[repr(C)]

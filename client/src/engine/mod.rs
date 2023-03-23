@@ -169,6 +169,7 @@ impl Engine {
     }
 
     pub fn run(mut self) {
+        // Need to move event_loop out of self to allow self to move with Copying
         let event_loop = self.event_loop.take().unwrap();
         event_loop.run(move |event, _, control_flow| match event {
             Event::WindowEvent { window_id, event } => {
@@ -347,6 +348,7 @@ fn create_window() -> (Window, EventLoop<()>) {
 
     #[cfg(target_arch = "wasm32")]
     {
+        // TODO: Make fill entire inner area
         window.set_inner_size(PhysicalSize::new(WIDTH, HEIGHT));
 
         use winit::platform::web::WindowExtWebSys;
@@ -399,25 +401,3 @@ async fn create_adapter(surface: &wgpu::Surface, instance: &Instance) -> Adapter
         .await
         .unwrap()
 }
-
-// struct TestEngine {
-//     engine: Engine,
-//     event_loop: Option<EventLoop<()>>,
-// }
-
-// impl TestEngine {
-//     fn run(mut self) {
-//         let event_loop = self.take_event_loop();
-//         event_loop.run(move |_, _, event| match event {
-//             _ => self.foo(),
-//         })
-//     }
-
-//     fn take_event_loop(&mut self) -> EventLoop<()> {
-//         self.event_loop.take().unwrap()
-//     }
-
-//     fn foo(&mut self) {
-//         todo!()
-//     }
-// }
